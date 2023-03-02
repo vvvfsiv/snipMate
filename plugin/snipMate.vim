@@ -123,9 +123,6 @@ fun s:DefineSnips(dir, aliasft, realft)
 endf
 
 fun! TriggerSnippet()
-    let s:_arg_trigger = ''
-    let s:_arg_snippet = ''
-
     if exists('g:SuperTabMappingForward')
         if g:SuperTabMappingForward == "<tab>"
             let SuperTabKey = "\<c-n>"
@@ -172,11 +169,6 @@ fun! ExpandSnippet(trigger, snippet)
     call setline(line('.'), curr_line)
     return snipMate#expandSnip(a:snippet, col_b)
 endf
-
-fun! ExpandSnippetWrap()
-    return ExpandSnippet(s:_arg_trigger, s:_arg_snippet)
-endf
-
 
 
 fun! BackwardsSnippet()
@@ -229,27 +221,30 @@ fun s:ChooseSnippet(scope, trigger)
     endfor
     if i == 2 | return ms_db[0][1] | endif
 
-    "let num = inputlist(snippet) - 1
-    "return num == -1 ? '' : s:multi_snips[a:scope][a:trigger][num][1]
+    if exists('*popup_menu')
+        fun! s:CB_ExpandSnippetX(id, selected) closure
+            let idx = a:selected - 1
+            if idx >= 0
+                fun! ExpandSnippetX() closure
+                    return ExpandSnippet(a:trigger, ms_db[idx][1])
+                endf
+                call feedkeys("\<c-r>=ExpandSnippetX()\<cr>", 'n')
+            endif
+        endf
 
-    let _cb = {'trigger' : a:trigger, 'db' : ms_db}
-    fun! _cb.expand_snippet(id, selected) dict
-        let idx = a:selected - 1
-        if idx >= 0
-            let s:_arg_trigger = self.trigger
-            let s:_arg_snippet = (self.db)[idx][1]
-            call feedkeys("\<c-r>=ExpandSnippetWrap()\<cr>", 'n')
-        endif
-    endf
-
-    call popup_menu(snippet, #{
-        \ callback : _cb.expand_snippet,
-        \ pos      : 'topleft',
-        \ line     : 'cursor+1',
-        \ col      : 'cursor',
-        \ border   : [0, 0, 0, 0],
-        \ })
-    return ''
+        call popup_menu(snippet, #{
+            \ callback : funcref('s:CB_ExpandSnippetX'),
+            \ pos      : 'topleft',
+            \ line     : 'cursor+1',
+            \ col      : 'cursor',
+            \ border   : [0, 0, 0, 0],
+            \ })
+        return ''
+    else
+        " original
+        let num = inputlist(snippet) - 1
+        return num == -1 ? '' : s:multi_snips[a:scope][a:trigger][num][1]
+    endif
 endf
 
 
